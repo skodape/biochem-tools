@@ -1,0 +1,6 @@
+# All files/directories starting with dot.
+.*
+
+# Idea files
+.idea
+
