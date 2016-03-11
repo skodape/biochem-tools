@@ -10,11 +10,7 @@ import logging
 import numpy
 
 __author__ = 'Petr Škoda'
-__credits__ = ['Petr Škoda']
 __license__ = 'X11'
-__version__ = '1.0.0'
-__maintainer__ = 'Petr Škoda'
-__status__ = 'Development'
 
 
 def read_json_array_stream(stream):
