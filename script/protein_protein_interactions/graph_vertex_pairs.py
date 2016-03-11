@@ -126,9 +126,9 @@ def vertex_code(vertex, configuration):
     code = 0
     for item in configuration['vertex']['properties']:
         value = vertex[item['name']]
-        if 'conversion' in item:
-            if value in item['conversion']:
-                value = item['conversion'][value]
+        if 'mapping' in item:
+            if value in item['mapping']:
+                value = item['mapping'][value]
             else:
                 value = item['default']
 
