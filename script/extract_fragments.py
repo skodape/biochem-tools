@@ -4,8 +4,6 @@
 
 """
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
 import os
 import argparse
 import logging
@@ -40,7 +38,7 @@ def extract_fragments(molecule):
     return output
 
 
-def _read_settings():
+def read_settings():
     """Get and return application settings.
 
     :return:
@@ -60,12 +58,12 @@ def _read_settings():
     return output
 
 
-def _main():
+def main():
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s [%(levelname)s] %(module)s - %(message)s',
         datefmt='%H:%M:%S')
-    setting = _read_settings()
+    setting = read_settings()
     output = []
     for molecule in rdkit.Chem.SDMolSupplier(setting['source']):
         output.append({
@@ -81,4 +79,4 @@ def _main():
 
 
 if __name__ == '__main__':
-    _main()
+    main()
