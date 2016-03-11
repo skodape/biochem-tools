@@ -52,7 +52,7 @@ def read_json_array_stream(stream):
                 buffer = ''
 
 
-def read_settings():
+def read_configuration():
     """Get and return application settings.
 
     :return:
@@ -61,15 +61,15 @@ def read_settings():
         description='computes fingerprints for given graphs')
     parser.add_argument('-i', type=str, dest='input',
                         help='input SDF file', required=True)
-    parser.add_argument('-s', type=str, dest='settings',
-                        help='settings JSON file', required=True)
+    parser.add_argument('-c', type=str, dest='configuration',
+                        help='configuration JSON file', required=True)
     parser.add_argument('-o', type=str, dest='output',
                         help='output SDF file', required=True)
     args = vars(parser.parse_args())
     #
     output = {
         'input': args['input'],
-        'settings': args['settings'],
+        'configuration': args['configuration'],
         'output': args['output']
     }
     return output
@@ -120,15 +120,15 @@ def warshall(vertices, edges):
     return distance_matrix
 
 
-def vertex_code(vertex, settings):
+def vertex_code(vertex, configuration):
     """Compute code for a single vertex.
 
     :param vertex:
-    :param settings:
+    :param configuration:
     :return:
     """
     code = 0
-    for item in settings['vertex']['properties']:
+    for item in configuration['vertex']['properties']:
         value = vertex[item['name']]
         if 'conversion' in item:
             if value in item['conversion']:
@@ -139,49 +139,50 @@ def vertex_code(vertex, settings):
         else:
             value = value % item['max']
         code = (code << int(item['size'])) + int(value)
-    return code % settings['vertex']['max']
+    return code % configuration['vertex']['max']
 
 
-def process_graph(graph, settings):
+def process_graph(graph, configuration):
     vertices = [item['id'] for item in graph['Vertices']]
     edges = graph['Edges']
     # Compute global graph descriptors.
-    if settings['distance']:
+    if configuration['distance']:
         distances = warshall(vertices, edges)
     #
-    fingerprint = numpy.zeros(settings['fp_size'])
+    fingerprint = numpy.zeros(configuration['fp_size'])
     for left in range(0, len(vertices)):
         for right in range(0, len(vertices)):
             # Add properties.
             value = 0
-            if settings['distance']:
-                value = (value << settings['distance']['size']) + \
-                        distances[left][right] % settings['distance']['max']
-            value = (value << settings['vertex']['size']) + \
-                    vertex_code(graph['Vertices'][left], settings)
-            value = (value << settings['vertex']['size']) + \
-                    vertex_code(graph['Vertices'][right], settings)
+            if configuration['distance']:
+                value = (value << configuration['distance']['size']) + \
+                        distances[left][right] % configuration['distance'][
+                            'max']
+            value = (value << configuration['vertex']['size']) + \
+                    vertex_code(graph['Vertices'][left], configuration)
+            value = (value << configuration['vertex']['size']) + \
+                    vertex_code(graph['Vertices'][right], configuration)
             # Store into the fingerprint.
-            fingerprint[value % settings['fp_size']] = 1
+            fingerprint[value % configuration['fp_size']] = 1
     return fingerprint
 
 
-def initialize_conversion_settings(settings):
+def initialize_conversion_configuration(config):
     """Prepare conversion settings for use.
 
     In file we use size to determine the number of bits used, but we also
     need to know max size in order to module the value properly.
-    :param settings:
+    :param config:
     :return:
     """
-    if 'distance' in settings:
-        settings['distance']['max'] = 1 << settings['distance']['size']
-    vertext_size = 0
-    for item in settings['vertex']['properties']:
+    if 'distance' in config:
+        config['distance']['max'] = 1 << config['distance']['size']
+    vertex_size = 0
+    for item in config['vertex']['properties']:
         item['max'] = 1 << item['size']
-        vertext_size += item['size']
-    settings['vertex']['size'] = vertext_size
-    settings['vertex']['max'] = 1 << vertext_size
+        vertex_size += item['size']
+    config['vertex']['size'] = vertex_size
+    config['vertex']['max'] = 1 << vertex_size
 
 
 def main():
@@ -191,21 +192,21 @@ def main():
         format='%(asctime)s.%(msecs)03d [%(levelname)s] %(module)s - %(message)s',
         datefmt='%H:%M:%S')
     logging.info('start')
-    settings = read_settings()
+    configuration = read_configuration()
     #
-    with open(settings['settings'], 'r') as input_stream:
-        conversion_settings = json.load(input_stream)
-    initialize_conversion_settings(conversion_settings)
+    with open(configuration['configuration'], 'r') as input_stream:
+        conversion_configuration = json.load(input_stream)
+    initialize_conversion_configuration(conversion_configuration)
     #
     counter = 0
-    with open(settings['output'], 'w') as output_stream:
-        with open(settings['input'], 'r') as input_stream:
+    with open(configuration['output'], 'w') as output_stream:
+        with open(configuration['input'], 'r') as input_stream:
             output_stream.write('[\n')
             first = True
             for graph in read_json_array_stream(input_stream):
                 #
                 id = graph['ID']
-                value = process_graph(graph, conversion_settings)
+                value = process_graph(graph, conversion_configuration)
                 # Write output.
                 if first:
                     first = False

@@ -38,7 +38,7 @@ def extract_fragments(molecule):
     return output
 
 
-def read_settings():
+def read_configuration():
     """Get and return application settings.
 
     :return:
@@ -63,18 +63,18 @@ def main():
         level=logging.DEBUG,
         format='%(asctime)s [%(levelname)s] %(module)s - %(message)s',
         datefmt='%H:%M:%S')
-    setting = read_settings()
+    configuration = read_configuration()
     output = []
-    for molecule in rdkit.Chem.SDMolSupplier(setting['source']):
+    for molecule in rdkit.Chem.SDMolSupplier(configuration['source']):
         output.append({
             'name': molecule.GetProp('_Name'),
             'fragments': extract_fragments(molecule)
         })
     #
-    if not os.path.exists(os.path.dirname(setting['target'])):
-        os.makedirs(os.path.dirname(setting['target']))
+    if not os.path.exists(os.path.dirname(configuration['target'])):
+        os.makedirs(os.path.dirname(configuration['target']))
 
-    with open(setting['target'], 'w') as output_stream:
+    with open(configuration['target'], 'w') as output_stream:
         json.dump(output, output_stream)
 
 
