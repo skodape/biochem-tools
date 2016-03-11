@@ -1,0 +1,20 @@
+{
+    "fp_size": 64,
+    "distance": {
+        "size": 2
+    },
+    "vertex": {
+        "properties": [
+            {
+                "size": 4,
+                "name": "aa",
+                "conversion": {
+                    "I" : 1,
+                    "D" : 2
+                },
+                "default" : 3
+            }
+        ]
+    }
+
+}
