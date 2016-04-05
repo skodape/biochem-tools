@@ -8,6 +8,7 @@ import argparse
 import json
 import logging
 import numpy
+import math
 
 __author__ = 'Petr Škoda'
 __license__ = 'X11'
@@ -79,10 +80,9 @@ def warshall(vertices, edges):
     :return:
     """
 
-    def get_distance(edges, x, y, no_path):
+    def get_distance(x, y, no_path):
         """
 
-        :param edges:
         :param x:
         :param y:
         :param no_path:
@@ -97,7 +97,7 @@ def warshall(vertices, edges):
         return no_path
 
     n = len(vertices)
-    distance_matrix = [[get_distance(edges, i, j, n + 1)
+    distance_matrix = [[get_distance(i, j, n + 1)
                         for j in vertices]
                        for i in vertices]
 
@@ -108,77 +108,206 @@ def warshall(vertices, edges):
                     distance_matrix[i][j],
                     distance_matrix[i][k] + distance_matrix[k][j])
 
+    # Convert to indexes
+    ver_list = [x for x in vertices]
+    result_matrix = {}
     for k in range(0, n):
+        result_matrix[ver_list[k]] = {}
         for i in range(0, n):
             if distance_matrix[k][i] == n + 1:
-                distance_matrix[k][i] = None
+                result_matrix[ver_list[k]][ver_list[i]] = None
+            else:
+                result_matrix[ver_list[k]][ver_list[i]] = distance_matrix[k][i]
+    # print('Warshall :', json.dumps(result_matrix, indent=1))
+    return result_matrix
 
-    return distance_matrix
+
+def process_template(item, template):
+    value = item[template['property']]
+    if template['type'] == 'property':
+        if 'format' not in template:
+            return value
+        elif template['format'] == 'gray':
+            # https://en.wikipedia.org/wiki/Gray_code
+            return value ^ (value >> 1)
+        else:
+            return value
+        # Use value as it is.
+        pass
+    elif template['type'] == 'mapping':
+        try:
+            value = template['map'][str(value)]
+        except:
+            logging.error('Item: %s', json.dumps(item, indent=2))
+            logging.error('Template: %s', json.dumps(template, indent=2))
+            raise Exception('Missing mapping for value: ' + str(value))
+    elif template['type'] == 'binning':
+        bin_found = False
+        for bin_definition in template['bins']:
+            if bin_definition['from'] <= value < bin_definition['to']:
+                bin_found = True
+                value = bin_definition['value']
+                break
+        if not bin_found:
+            raise Exception('Missing bin for value: ' + str(value))
+    else:
+        value = 0
+    return value
 
 
-def vertex_code(vertex, configuration):
-    """Compute code for a single vertex.
+def get_vertex_code(index, vertices, configuration, molecule):
+    vertex = vertices[index]
+    # print('- - - - - - - - - - - -')
+    result = 0
+    shift = 0
+    for item in configuration['fingerprint']['vertex']:
+        value = process_template(vertex, item)
+        # Store the value.
+        if 'name' in item:
+            # print('Store value: ', value, 'as', item['name'])
+            vertex[item['name']] = value
+        else:
+            # print('Write value: ', value, ' as ',
+            #       bin(int(value) % item['max']), ' ~ ',
+            #       bin(int(value) % item['max'] << shift))
+            # Put to output.
+            result += (int(value) % item['max']) << shift
+            shift += item['size']
+            # print('    -> ', bin(result))
+    # print('Vertex:', json.dumps(vertex, indent=2))
+    # print('Vertex value:', bin(result % configuration['vertex_max']))
+    return result % configuration['vertex_max']
 
-    :param vertex:
-    :param configuration:
+
+def find_edge(left, right, edges):
+    """Find and return edge or an empty object.
+
+    :param left:
+    :param right:
+    :param edges:
     :return:
     """
-    code = 0
-    for item in configuration['vertex']['properties']:
-        value = vertex[item['name']]
-        if 'mapping' in item:
-            if value in item['mapping']:
-                value = item['mapping'][value]
-            else:
-                value = item['default']
+    if right > left:
+        swap = left
+        left = right
+        right = swap
+    for item in edges:
+        if item['from'] == left and item['to'] == right:
+            return item
+    return {}
 
+
+def get_edge_code(left_index, right_index, vertices, edges, configuration,
+                  molecule):
+    left = vertices[left_index]
+    right = vertices[right_index]
+    edge = None
+    #
+    result = 0
+    shift = 0
+    # print('- - - - - - - - - - - -')
+    for item in configuration['fingerprint']['edge']:
+        if item['type'] == 'distance':
+            # Artificial type of a property.
+            value = molecule['distance'][left_index][right_index]
+        elif item['type'] == 'compute':
+            # Computed property.
+            if item['method'] == 'euclidean_distance':
+                value = 0
+                for key in item['source']:
+                    value += pow(float(left[key]) - float(right[key]), 2)
+                value = math.sqrt(value)
+            else:
+                raise Exception('Unknown method: ' + item['method'])
         else:
-            value = value % item['max']
-        code = (code << int(item['size'])) + int(value)
-    return code % configuration['vertex']['max']
+            if edge is None:
+                edge = find_edge(left_index, right_index, edges)
+            value = process_template(edge, item)
+        # Store the value.
+        if 'name' in item:
+            if edge is None:
+                edge = find_edge(left_index, right_index, edges)
+            edge[item['name']] = value
+        else:
+            # print('Write value:', value, 'as',
+            #       bin(int(value) % item['max']), ' ~ ',
+            #       bin(int(value) % item['max'] << shift))
+            # Put to output.
+            result += (int(value) % item['max']) << shift
+            shift += item['size']
+            # print('    -> ', bin(result))
+
+    # print('Edge:', json.dumps(edge, indent=2))
+    # print('Edge value:', bin(result % configuration['edge_max']))
+    return result % configuration['edge_max']
 
 
 def process_graph(graph, configuration):
-    vertices = [item['id'] for item in graph['Vertices']]
+    # print(json.dumps(graph, indent=2))
+
+    vertices = {}
+    for item in graph['Vertices']:
+        vertices[item['id']] = item
     edges = graph['Edges']
-    # Compute global graph descriptors.
-    if configuration['distance']:
-        distances = warshall(vertices, edges)
     #
-    fingerprint = numpy.zeros(configuration['fp_size'])
-    for left in range(0, len(vertices)):
-        for right in range(0, len(vertices)):
+    fingerprint_size = configuration['fingerprint']['size']
+    edge_size = configuration['fingerprint']['edge_size']
+    vertex_size = configuration['fingerprint']['vertex_size']
+    # Compute global descriptors.
+    info = {
+        'distance': warshall(vertices.keys(), edges)
+    }
+    # COMMENT OUT THIS AND USAGE TO IMPROVE PERFORMANCE
+    indexes_count = 0
+    indexes = set()
+    indexes_hashed = set()
+    #
+    fingerprint = numpy.zeros(fingerprint_size)
+    for left in vertices.keys():
+        for right in vertices.keys():
+            if left == right:
+                continue
             # Add properties.
-            value = 0
-            if configuration['distance']:
-                value = (value << configuration['distance']['size']) + \
-                        distances[left][right] % configuration['distance'][
-                            'max']
-            value = (value << configuration['vertex']['size']) + \
-                    vertex_code(graph['Vertices'][left], configuration)
-            value = (value << configuration['vertex']['size']) + \
-                    vertex_code(graph['Vertices'][right], configuration)
+            left_code = get_vertex_code(left, vertices, configuration, info)
+            right_code = get_vertex_code(right, vertices, configuration, info)
+            edge_code = get_vertex_code(right, vertices, configuration, info)
+            # Construct value.
+            value = (left_code << (vertex_size + edge_size)) + \
+                    (edge_code << vertex_size) + right_code
+            # print('Index ', value, '(', value % fingerprint_size, ')',
+            #       ' ~', bin(value))
+            #
+            indexes_count += 1
+            indexes.add(value)
+            indexes_hashed.add(value % fingerprint_size)
             # Store into the fingerprint.
-            fingerprint[value % configuration['fp_size']] = 1
+            fingerprint[value % fingerprint_size] = 1
+    # UNCOMMENT THIS TO SEE THE NUMBER OF UNIQUE AND HASHED FRAGMENTS
+    # print('> size:', indexes_count, 'uniq:', len(indexes), 'hashed:',
+    #       len(indexes_hashed), 'nodes:', len(vertices.keys()))
+    # print('\t', indexes)
+    # print('\t', indexes_hashed)
     return fingerprint
 
 
-def initialize_conversion_configuration(config):
-    """Prepare conversion settings for use.
-
-    In file we use size to determine the number of bits used, but we also
-    need to know max size in order to module the value properly.
-    :param config:
-    :return:
-    """
-    if 'distance' in config:
-        config['distance']['max'] = 1 << config['distance']['size']
+def initialize_conversion_configuration(configuration):
     vertex_size = 0
-    for item in config['vertex']['properties']:
-        item['max'] = 1 << item['size']
+    for item in configuration['fingerprint']['vertex']:
+        if 'size' not in item:
+            continue
         vertex_size += item['size']
-    config['vertex']['size'] = vertex_size
-    config['vertex']['max'] = 1 << vertex_size
+        item['max'] = 1 << item['size']
+    configuration['fingerprint']['vertex_size'] = vertex_size
+    configuration['vertex_max'] = 1 << vertex_size
+
+    edge_size = 0
+    for item in configuration['fingerprint']['edge']:
+        if 'size' not in item:
+            continue
+        edge_size += item['size']
+        item['max'] = 1 << item['size']
+    configuration['fingerprint']['edge_size'] = edge_size
+    configuration['edge_max'] = 1 << edge_size
 
 
 def main():
@@ -188,10 +317,12 @@ def main():
         format='%(asctime)s.%(msecs)03d [%(levelname)s] %(module)s - %(message)s',
         datefmt='%H:%M:%S')
     logging.info('start')
+
     configuration = read_configuration()
-    #
+
     with open(configuration['configuration'], 'r') as input_stream:
         conversion_configuration = json.load(input_stream)
+
     initialize_conversion_configuration(conversion_configuration)
     #
     counter = 0
@@ -220,9 +351,14 @@ def main():
                 # Progress
                 counter += 1
                 if counter % 1000 == 0:
-                    logging.info(counter);
+                    logging.info(counter)
+                    break
+            #
             output_stream.write(']')
-    logging.info('done')
+            print(output_stream.getvalue())
+            output_stream.close()
+
+    logging.info('done %d', counter)
 
 
 if __name__ == '__main__':

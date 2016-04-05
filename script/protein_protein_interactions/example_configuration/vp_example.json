@@ -1,0 +1,121 @@
+{
+  "fingerprint": {
+    "size": 64,
+    "#comment": "Structure describes the format of a single atom pair index.",
+    "edge": [
+      {
+        "#comment": "Topological distance.",
+        "type": "distance",
+        "size": 2
+      },
+      {
+        "#comment": "Compute distance between molecules. This property is not put to the output.",
+        "type": "compute",
+        "method": "euclidean_distance",
+        "property": "position",
+        "source": [
+          "x",
+          "y",
+          "z"
+        ],
+        "name": "distance"
+      },
+      {
+        "#comment": "We can use computed property. But we can to use it only after it has been computed.",
+        "type": "binning",
+        "property": "distance",
+        "bins": [
+          {
+            "from": 0,
+            "to": 1,
+            "value": 1
+          },
+          {
+            "from": 1,
+            "to": 2,
+            "value": 2
+          },
+          {
+            "from": 2,
+            "to": 10000,
+            "value": 3
+          }
+        ],
+        "size": 3
+      }
+    ],
+    "vertex": [
+      {
+        "#comment": "Direct use of a property.",
+        "type": "property",
+        "property": "rasa10",
+        "size": 3,
+        "format": "gray"
+      },
+      {
+        "#comment": "Map given property to some value.",
+        "type": "mapping",
+        "property": "aa",
+        "map": {
+          "A": 1,
+          "C": 2,
+          "D": 6,
+          "E": 6,
+          "F": 4,
+          "G": 1,
+          "H": 5,
+          "I": 1,
+          "K": 5,
+          "L": 1,
+          "M": 2,
+          "N": 6,
+          "O": 5,
+          "P": 3,
+          "Q": 6,
+          "R": 5,
+          "S": 2,
+          "T": 2,
+          "U": 2,
+          "V": 1,
+          "W": 4,
+          "Y": 4
+        },
+        "size": 2
+      },
+      {
+        "#comment": "Demonstrates custom binning. The range is <from, to)",
+        "type": "binning",
+        "property": "rasa10",
+        "bins": [
+          {
+            "from": 0,
+            "to": 1,
+            "value": 1
+          },
+          {
+            "from": 1,
+            "to": 2,
+            "value": 2
+          },
+          {
+            "from": 2,
+            "to": 11,
+            "value": 3
+          }
+        ],
+        "name": "rasa10-bin"
+      },
+      {
+        "#comment": "Usage of computed property.",
+        "type": "mapping",
+        "property": "rasa10-bin",
+        "map": {
+          "1": 0,
+          "2": 1,
+          "3": 2
+        },
+        "size": 2
+      }
+    ]
+  }
+}
