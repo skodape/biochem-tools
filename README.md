@@ -1,5 +1,5 @@
 ###Requirements###
-The code is developed and tested with [Python](https://www.python.org/) 3.5 
+The code is developed with [Python](https://www.python.org/) 3.5 
 and [RDKit](https://github.com/rdkit/rdkit/tree/Release_2015_03_1).
 
 ###Use cases###
