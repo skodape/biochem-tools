@@ -26,8 +26,10 @@ def create_parent_directory(path):
     :return:
     """
     if not os.path.exists(os.path.dirname(path)):
-        os.makedirs(os.path.dirname(path))
-
+        dir_name = os.path.dirname(path)
+        if dir_name != "":
+            os.makedirs(os.path.dirname(path))
+            
 
 def read_configuration():
     """Get and return application settings.
