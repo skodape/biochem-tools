@@ -12,6 +12,7 @@ import math
 
 __author__ = 'Petr Škoda'
 __license__ = 'X11'
+__email__ = 'skoda@ksi.mff.cuni.cz'
 
 
 def read_json_array_stream(stream):
