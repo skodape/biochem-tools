@@ -8,7 +8,7 @@ Usage:
     python extract_fragments.py
         -i {dir with sdf files}
         -o {path to output}
-        -f {optional, specify types of computed fragments}
+        -f {optional, comma separated list of fragment types to extract}
 
 Fragments type:
     - tt.{SIZE}
