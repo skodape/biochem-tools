@@ -27,8 +27,8 @@ def create_parent_directory(path):
     :return:
     """
     dir_name = os.path.dirname(path)
-    if dir_name != "":
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+    if not os.path.exists(dir_name) and not dir_name == "":
+        os.makedirs(dir_name)
 
 
 def read_configuration():
