@@ -17,6 +17,7 @@ import subprocess
 
 __author__ = 'Petr Škoda'
 __license__ = 'X11'
+__email__ = 'skoda@ksi.mff.cuni.cz'
 
 
 def create_parent_directory(path):
@@ -84,8 +85,8 @@ def main():
     thread = subprocess.Popen(
         ['java', '-jar',
          configuration['padel'] + '/PaDEL-Descriptor.jar',
-         '-maxruntime', '1000',
-         '-threads', '4',
+         '-maxruntime', '5000',
+         '-threads', '2',
          '-2d',
          '-dir', padel_input,
          '-file', configuration['output']],
