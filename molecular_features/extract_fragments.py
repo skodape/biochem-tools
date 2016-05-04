@@ -191,14 +191,13 @@ def extract_fragments(molecule, types):
     :return:
     """
     output = []
-    for type in types:
-        type = type.split('.')
-        name = type[0]
-        size = int(type[1])
-        if name == 'tt':
-            output.extend(extract_path_fragments(molecule, size))
-        elif name == 'ecfp':
-            output.extend(extract_neighbourhood_fragments(molecule, size))
+    for item in types:
+        if item['name'] == 'tt':
+            output.extend(extract_path_fragments(molecule,
+                                                 item['size']))
+        elif item['name'] == 'ecfp':
+            output.extend(extract_neighbourhood_fragments(molecule,
+                                                          item['size']))
     return output
 
 
@@ -223,12 +222,22 @@ def read_configuration():
                         required=False)
     configuration = vars(parser.parse_args());
 
-    if 'fragments' in configuration and configuration['fragments'] is not None:
-        print(configuration)
-        configuration['types'] = configuration['fragments'].split(',')
-    else:
-        configuration['types'] = ['tt.3']
+    if 'fragments' not in configuration or configuration['fragments'] is None:
+        configuration['fragments'] = 'tt.3'
 
+    # Parse fragment types.
+    parsed_types = []
+    for item in configuration['fragments'].split(','):
+        item_split = item.split('.')
+        if not len(item_split) == 2:
+            print('Invalid fragment type: ' + item)
+            print('  Expected format {TYPE}.{SIZE}')
+            exit(1)
+        parsed_types.append({
+            'name': item_split[0],
+            'size': int(item_split[1])
+        })
+    configuration['types'] = parsed_types
     return configuration
 
 
