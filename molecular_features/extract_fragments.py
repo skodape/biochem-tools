@@ -51,8 +51,14 @@ def get_atom_code(atom, branch_subtract):
     # code = typeIdx | numPiElectrons | numBranches
 
     max_num_branches = (1 << num_branch_bits) - 1
-    max_num_pi = (1 << num_pi_bits) - 1;
-    atom_number_types = [5, 6, 7, 8, 9, 14, 15, 16, 17, 33, 34, 35, 53, 0]
+    max_num_pi = (1 << num_pi_bits) - 1
+    # Original publication use :
+    #                   [5, 6, 7, 8, 9, 14, 15, 16, 17, 33, 34, 35, 53]
+    # RDKit use:
+    # We must add trailing zero as we need 16 elements in the array
+    # for atom_code.bits.type equal 4.
+    atom_number_types = [5, 6, 7, 8, 9, 14, 15, 16, 17, 33, 34, 35, 51, 52, 43,
+                         0]
     # Number of non-hydrogen? neighbor
     if atom.GetDegree() > branch_subtract:
         num_branches = atom.GetDegree() - branch_subtract
@@ -72,7 +78,7 @@ def get_atom_code(atom, branch_subtract):
         if atom_number_types[type_idx] == atom.GetAtomicNum():
             break
         elif atom_number_types[type_idx] > atom.GetAtomicNum():
-            type_idx = n_types;
+            type_idx = n_types
             break
         else:
             type_idx += 1
