@@ -315,14 +315,7 @@ def main():
         level=logging.DEBUG,
         format='%(asctime)s [%(levelname)s] %(module)s - %(message)s',
         datefmt='%H:%M:%S')
-    # configuration = read_configuration()
-    configuration = {
-        'input': 'D:/Projects/VS-Datasets/data-remote/10.1021/ci200412p/preparation/sdf/ACM1_Agonist_Decoys.sdf',
-        'recursive': False,
-        'output': 'D:/Temp/DavidHoksza/output.json',
-        'types': [{'name': 'ecfp', 'size': 2}]
-    }
-
+    configuration = read_configuration()
     if os.path.isdir(configuration['input']):
         input_files = recursive_scan_for_sdf(configuration['input'],
                                              configuration['recursive'])
