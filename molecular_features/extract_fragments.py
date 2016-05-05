@@ -169,9 +169,14 @@ def extract_neighbourhood_fragments(molecule, size):
                 atoms.add(molecule.GetBondWithIdx(bidx).GetEndAtomIdx())
             # check if we have some atoms
             if len(atoms) > 0:
-                smiles = rdkit.Chem.MolFragmentToSmiles(
-                    molecule, atomsToUse=list(atoms), bondsToUse=env,
-                    rootedAtAtom=item[0])
+                try:
+                    smiles = rdkit.Chem.MolFragmentToSmiles(
+                        molecule, atomsToUse=list(atoms), bondsToUse=env,
+                        rootedAtAtom=item[0])
+                except Exception:
+                    logging.exception('Invalid fragment detected.')
+                    logging.info('Molecule: %s', molecule.GetProp('_Name'))
+                    logging.info('Atoms: %s', ','.join([str(x) for x in atoms]))
                 output.append({
                     'smiles': smiles,
                     'index': element,
@@ -310,7 +315,14 @@ def main():
         level=logging.DEBUG,
         format='%(asctime)s [%(levelname)s] %(module)s - %(message)s',
         datefmt='%H:%M:%S')
-    configuration = read_configuration()
+    # configuration = read_configuration()
+    configuration = {
+        'input': 'D:/Projects/VS-Datasets/data-remote/10.1021/ci200412p/preparation/sdf/ACM1_Agonist_Decoys.sdf',
+        'recursive': False,
+        'output': 'D:/Temp/DavidHoksza/output.json',
+        'types': [{'name': 'ecfp', 'size': 2}]
+    }
+
     if os.path.isdir(configuration['input']):
         input_files = recursive_scan_for_sdf(configuration['input'],
                                              configuration['recursive'])
