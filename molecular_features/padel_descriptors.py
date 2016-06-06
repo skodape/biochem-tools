@@ -3,7 +3,7 @@
 """Compute PaDEL descriptors for molecules/fragments.
 
 Usage:
-    python compute_descriptors.py
+    python padel_descriptors.py
         -i {path to JSON with molecules, output of extract_fragments}
         -o {path to output csv file}
         -p {path to the PaDEL directory that contains PaDEL-Descriptor.jar}
@@ -62,7 +62,7 @@ def main():
     with open(configuration['input'], 'r') as stream:
         data = json.load(stream)
     create_parent_directory(configuration['output'])
-    # Gather data
+    # Gather data.
     smiles_set = set()
     if 'fragments' in configuration and configuration['fragments']:
         for molecule in data:
@@ -81,7 +81,7 @@ def main():
             stream.write('\t')
             stream.write(smiles)
             stream.write('\n')
-    # Execute PaDEL
+    # Execute PaDEL.
     logging.info('Executing PaDEL ...')
     thread = subprocess.Popen(
         ['java', '-jar',
