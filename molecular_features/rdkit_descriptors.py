@@ -6,6 +6,7 @@ Usage:
     python rdkit_descriptors.py
         -i {path to JSON with molecules, output of extract_fragments}
         -o {path to output csv file}
+        -f Compute for fragments else for molecules.
 """
 
 import os

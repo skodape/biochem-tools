@@ -7,6 +7,7 @@ Usage:
         -i {path to JSON with molecules, output of extract_fragments}
         -o {path to output csv file}
         -p {path to the PaDEL directory that contains PaDEL-Descriptor.jar}
+        -f Compute for fragments else for molecules.
 """
 
 import os
