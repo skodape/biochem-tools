@@ -24,7 +24,6 @@ __email__ = 'skoda@ksi.mff.cuni.cz'
 # region Descriptors definition
 
 _names = [
-    'GetNumAtoms',
     'MolWt',
     'HeavyAtomMolWt',
     'ExactMolWt',
@@ -470,6 +469,7 @@ def main():
             if not molecule['smiles'] in smiles_set:
                 smiles_set.add(molecule['smiles'])
     # Compute and write descriptors.
+    number_of_invalid = 0
     with open(configuration['output'], 'w') as stream:
         stream.write('smiles,')
         stream.write(','.join(_names))
@@ -486,8 +486,19 @@ def main():
             stream.write('",')
             # Properties.
             molecule = rdkit.Chem.MolFromSmiles(smiles)
+            if molecule is None:
+                print('Invalid molecule detected: ', smiles)
+                number_of_invalid += 1
+                continue
+            # print(smiles)
+            # for index in range(1, len(_functions)):
+            #     print('\t', counter, ':', _names[index])
+            #     _functions[index](molecule)
+
             stream.write(','.join([str(fnc(molecule)) for fnc in _functions]))
             stream.write('\n')
+    print()
+    print('Invalid molecules: ', number_of_invalid, '/', len(smiles_set))
 
 if __name__ == '__main__':
     main()
