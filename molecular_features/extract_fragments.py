@@ -170,9 +170,12 @@ def extract_neighbourhood_fragments(molecule, size):
             # check if we have some atoms
             if len(atoms) > 0:
                 try:
+                    # kekuleSmiles - we may lost some information
+                    # about aromatic atoms, but if we do not kekulize
+                    # we can get invalid smiles
                     smiles = rdkit.Chem.MolFragmentToSmiles(
                         molecule, atomsToUse=list(atoms), bondsToUse=env,
-                        rootedAtAtom=item[0])
+                        rootedAtAtom=item[0], kekuleSmiles=True)
                 except Exception:
                     logging.exception('Invalid fragment detected.')
                     logging.info('Molecule: %s', molecule.GetProp('_Name'))
