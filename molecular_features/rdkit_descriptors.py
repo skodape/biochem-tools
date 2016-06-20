@@ -484,21 +484,22 @@ def main():
             stream.write('"')
             stream.write(smiles)
             stream.write('",')
-            # Properties.
-            molecule = rdkit.Chem.MolFromSmiles(smiles)
+            # Construct molecule, compute and write properties.
+            molecule = rdkit.Chem.MolFromSmiles(smiles, sanitize=False)
+            # Do not kekulize molecule.
+            rdkit.Chem.SanitizeMol(molecule,
+                                   sanitizeOps=rdkit.Chem.SanitizeFlags.SANITIZE_ALL ^
+                                               rdkit.Chem.SanitizeFlags.SANITIZE_KEKULIZE);
+            #
             if molecule is None:
                 print('Invalid molecule detected: ', smiles)
                 number_of_invalid += 1
                 continue
-            # print(smiles)
-            # for index in range(1, len(_functions)):
-            #     print('\t', counter, ':', _names[index])
-            #     _functions[index](molecule)
-
             stream.write(','.join([str(fnc(molecule)) for fnc in _functions]))
             stream.write('\n')
     print()
     print('Invalid molecules: ', number_of_invalid, '/', len(smiles_set))
+
 
 if __name__ == '__main__':
     main()
