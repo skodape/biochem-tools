@@ -5,8 +5,9 @@
 Usage:
     python rdkit_descriptors.py
         -i {path to JSON with molecules, output of extract_fragments}
-        -o {path to output csv file}
-        -f Compute for fragments else for molecules.
+        -o {path to output CSV file}
+        --fragments Use fragments else use molecules.
+                    Default is to use molecules.
 """
 
 import os
@@ -441,7 +442,7 @@ def read_configuration():
                         required=True)
     parser.add_argument('-o', type=str, dest='output',
                         help='output CSV file', required=True)
-    parser.add_argument('-f', dest='fragments',
+    parser.add_argument('--fragments', dest='fragments',
                         help='use fragments instead of molecules',
                         action='store_true', required=False)
 
