@@ -478,7 +478,7 @@ def main():
         counter_step = int(len(smiles_set) / 10)
         for smiles in smiles_set:
             if counter % counter_step == 0:
-                logging.info( '%d/%d', counter, len(smiles_set))
+                logging.info('%d/%d', counter, len(smiles_set))
             counter += 1
             # SMILES.
             stream.write('"')
