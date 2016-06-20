@@ -6,15 +6,24 @@ Path and circular fragments use different indexing method, so they may collide.
 
 Usage:
     python extract_fragments.py
-        -i {dir with sdf files}
+        -i {directory with input files}
         -o {path to output}
         -f {optional, comma separated list of fragment types to extract}
+
+        -t {type of input files, 'sdf', 'smi'. Default is 'sdf'}
+        --kekule {generated kekule form of SMILES for fragments}
+        --isomeric {put stereochemistry information into fragments SMILES}
 
 Fragments type:
     - tt.{SIZE}
     - ecfp.{SIZE}
-where {SIZE} should be replaced by required fragment size.
+where {SIZE} should be replaced by required fragment size. Usage example:
+    tt.3,ecfp.2
+default value:
+    tt.3
 
+Kekule smiles form has no aromatic bonds. Use of --kekule option thus may
+reduce the number of generated unique fragments.
 """
 
 import os
@@ -126,12 +135,14 @@ def score_path(molecule, path, size):
     return accum
 
 
-def extract_path_fragments(molecule, size):
+def extract_path_fragments(molecule, size, options):
     output = []
     pattern = rdkit.Chem.MolFromSmarts('*' + ('~*' * (size - 1)))
     for atoms in molecule.GetSubstructMatches(pattern):
         smiles = rdkit.Chem.MolFragmentToSmiles(
-            molecule, atomsToUse=list(atoms), kekuleSmiles=True)
+            molecule, atomsToUse=list(atoms),
+            kekuleSmiles=options['kekule'],
+            isomericSmiles=options['isomeric'])
         output.append({
             'smiles': smiles,
             'index': score_path(molecule, atoms, size),
@@ -145,11 +156,12 @@ def extract_path_fragments(molecule, size):
 
 # region Circular fragments
 
-def extract_neighbourhood_fragments(molecule, size):
+def extract_neighbourhood_fragments(molecule, size, options):
     """Extract and return circular fragments.
 
     :param molecule:
     :param size:
+    :param options:
     :return:
     """
     output = []
@@ -175,7 +187,8 @@ def extract_neighbourhood_fragments(molecule, size):
                     # we can get invalid smiles
                     smiles = rdkit.Chem.MolFragmentToSmiles(
                         molecule, atomsToUse=list(atoms), bondsToUse=env,
-                        rootedAtAtom=item[0], kekuleSmiles=True)
+                        rootedAtAtom=item[0], kekuleSmiles=options['kekule'],
+                        isomericSmiles=options['isomeric'])
                 except Exception:
                     logging.exception('Invalid fragment detected.')
                     logging.info('Molecule: %s', molecule.GetProp('_Name'))
@@ -191,21 +204,22 @@ def extract_neighbourhood_fragments(molecule, size):
 
 # endregion
 
-def extract_fragments(molecule, types):
+def extract_fragments(molecule, types, options):
     """Return fragments for given molecule.
 
     :param molecule:
     :param types: Types of fragments to extract.
+    :param options
     :return:
     """
     output = []
     for item in types:
         if item['name'] == 'tt':
-            output.extend(extract_path_fragments(molecule,
-                                                 item['size']))
+            output.extend(extract_path_fragments(
+                molecule, item['size'], options))
         elif item['name'] == 'ecfp':
-            output.extend(extract_neighbourhood_fragments(molecule,
-                                                          item['size']))
+            output.extend(extract_neighbourhood_fragments(
+                molecule, item['size'], options))
     return output
 
 
@@ -215,19 +229,19 @@ def read_configuration():
     :return:
     """
     parser = argparse.ArgumentParser(
-        description='extract molecular fragments')
-    parser.add_argument('-i', type=str, dest='input',
-                        help='path to the input',
-                        required=True)
-    parser.add_argument('-o', type=str, dest='output',
-                        help='output JSON file', required=True)
-    parser.add_argument('-f', type=str, dest='fragments',
-                        help='comma separated list of fragments '
-                             '[tt.{size},ecfp.{size}] Default is tt-3.',
+        description='Extract molecular fragments. '
+                    'See file header for more details.')
+    parser.add_argument('-i', type=str, dest='input', required=True)
+    parser.add_argument('-o', type=str, dest='output', required=True)
+    parser.add_argument('-f', type=str, dest='fragments', required=False)
+    parser.add_argument('-t', type=str, dest='input_type', default='sdf')
+    parser.add_argument('--recursive', dest='recursive', action='store_true',
                         required=False)
-    parser.add_argument('-r', dest='recursive',
-                        help='recursive scan', action='store_true',
-                        required=False)
+    parser.add_argument('--kekule', dest='kekule',
+                        action='store_true', required=False)
+    parser.add_argument('--isomeric', dest='isomeric',
+                        action='store_true', required=False)
+
     configuration = vars(parser.parse_args());
 
     if 'fragments' not in configuration or configuration['fragments'] is None:
@@ -245,33 +259,51 @@ def read_configuration():
             'name': item_split[0],
             'size': int(item_split[1])
         })
-    configuration['types'] = parsed_types
+    configuration['fragments'] = parsed_types
+    configuration['input_type'] = configuration['input_type'].lower()
     return configuration
 
 
-def load_sdf(path, types):
+def load_sdf(path):
     """Generate molecules from SDF file.
 
     :param path:
     :param types:
     """
-    logging.info('Loading: %s' % path)
+    logging.info('Loading (SDF): %s' % path)
     for molecule in rdkit.Chem.SDMolSupplier(path):
         if molecule is None:
             logging.error('Invalid molecule detected.')
             continue
-        yield ({
-            'name': molecule.GetProp('_Name'),
-            'smiles': rdkit.Chem.MolToSmiles(molecule),
-            'fragments': extract_fragments(molecule, types)
-        })
+        yield molecule
 
 
-def recursive_scan_for_sdf(path, recursive):
-    """Perform recursive scan with call callback on all SDF files.
+def load_smi(path):
+    """Generate molecules from SMI file.
+
+    :param path:
+    :return:
+    """
+    logging.info('Loading (SMI): %s' % path)
+    with open(path, 'r') as stream:
+        for line in stream:
+            line = line.strip()
+            molecule = rdkit.Chem.MolFromSmiles(line)
+            if molecule is None:
+                logging.error('Invalid molecule detected.')
+                continue
+            # Molecules created from SMILES does not have any name,
+            # so we use the SMILES as a name.
+            molecule.SetProp('_Name', line)
+            yield molecule
+
+
+def recursive_scan_for_input(path, recursive, extension):
+    """Perform recursive scan for input files.
 
     :param path:
     :param recursive
+    :param extension
     :return:
     """
     result = []
@@ -279,27 +311,28 @@ def recursive_scan_for_sdf(path, recursive):
         file_path = path + '/' + file_name
         if os.path.isdir(file_path):
             if recursive:
-                result.extend(recursive_scan_for_sdf(file_path, recursive))
-        elif os.path.isfile(file_path) and file_name.lower().endswith('.sdf'):
+                result.extend(recursive_scan_for_input(
+                    file_path, recursive, extension))
+        elif os.path.isfile(file_path) \
+                and file_name.lower().endswith(extension):
             result.append(file_path)
     return result
 
 
-def write_molecule_json(output_stream, molecules, holder):
+def append_object_to_json(output_stream, item, holder):
     """Write given molecule as a JSON into stream.
 
-    Optionaly put separator before the record based on 'holder'.
+    Optionally put separator before the record based on 'holder'.
     :param output_stream:
-    :param molecules:
-    :param holder:
+    :param item: Item to append to JSON file.
+    :param holder: Object shared by all calls of this method on the same stream.
     :return:
     """
-    for molecule in molecules:
-        if holder['first']:
-            holder['first'] = False
-        else:
-            output_stream.write(',')
-        json.dump(molecule, output_stream)
+    if holder['first']:
+        holder['first'] = False
+    else:
+        output_stream.write(',')
+    json.dump(item, output_stream)
 
 
 def create_parent_directory(path):
@@ -313,29 +346,54 @@ def create_parent_directory(path):
         os.makedirs(dir_name)
 
 
+_load_functions = {
+    'sdf': load_sdf,
+    'smi': load_smi
+}
+
+
 def main():
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s [%(levelname)s] %(module)s - %(message)s',
         datefmt='%H:%M:%S')
     configuration = read_configuration()
+    # Read files to load.
     if os.path.isdir(configuration['input']):
-        input_files = recursive_scan_for_sdf(configuration['input'],
-                                             configuration['recursive'])
+        input_files = recursive_scan_for_input(configuration['input'],
+                                               configuration['recursive'],
+                                               configuration['input_type'])
     else:
         input_files = [configuration['input']]
+    # The write_molecule_json need some static info.
+    holder = {'first': True}
+    # Prepare configuration for the extraction.
+    extraction_options = {
+        'kekule': configuration['kekule'],
+        'isomeric': configuration['isomeric']
+    }
+    # Count some statistics.
+    total_fragments = 0
     #
     create_parent_directory(configuration['output'])
     with open(configuration['output'], 'w') as output_stream:
-        holder = {'first': True}
-        #
         output_stream.write('[')
         for path in input_files:
-            write_molecule_json(
-                output_stream,
-                load_sdf(path, configuration['types']),
-                holder)
+            for molecule in _load_functions[configuration['input_type']](path):
+                item = {
+                    'name': molecule.GetProp('_Name'),
+                    'smiles': rdkit.Chem.MolToSmiles(molecule),
+                    'fragments': extract_fragments(
+                        molecule, configuration['fragments'],
+                        extraction_options)
+                }
+                total_fragments += len(item['fragments'])
+                # Append to output.
+                append_object_to_json(output_stream, item, holder)
         output_stream.write(']')
+    #
+    print("Report")
+    print("  fragments total:", total_fragments)
 
 
 if __name__ == '__main__':
