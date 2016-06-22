@@ -6,7 +6,7 @@ Path and circular fragments use different indexing method, so they may collide.
 
 Usage:
     python extract_fragments.py
-        -i {directory with input files}
+        -i {input file or directory with input files}
         -o {path to output}
         -f {optional, comma separated list of fragment types to extract}
 
