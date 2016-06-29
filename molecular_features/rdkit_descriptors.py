@@ -8,6 +8,9 @@ Usage:
         -o {path to output CSV file}
         --fragments Use fragments else use molecules.
                     Default is to use molecules.
+
+This file can be also imported as a python script. In such case please
+use the extract_fragments method.
 """
 
 import os
@@ -429,7 +432,7 @@ def create_parent_directory(path):
         os.makedirs(dir_name)
 
 
-def read_configuration():
+def _read_configuration():
     """Get and return application settings.
 
     :return:
@@ -449,18 +452,13 @@ def read_configuration():
     return vars(parser.parse_args())
 
 
-def main():
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s [%(levelname)s] %(module)s - %(message)s',
-        datefmt='%H:%M:%S')
-    configuration = read_configuration()
-    with open(configuration['input'], 'r') as stream:
+def compute_descriptors(input_file, output_file, use_fragments):
+    with open(input_file, 'r') as stream:
         data = json.load(stream)
-    create_parent_directory(configuration['output'])
+    create_parent_directory(output_file)
     # Gather data.
     smiles_set = set()
-    if 'fragments' in configuration and configuration['fragments']:
+    if use_fragments:
         for molecule in data:
             for fragment in molecule['fragments']:
                 if not fragment['smiles'] in smiles_set:
@@ -470,8 +468,10 @@ def main():
             if not molecule['smiles'] in smiles_set:
                 smiles_set.add(molecule['smiles'])
     # Compute and write descriptors.
+    sanitize_operation = rdkit.Chem.SanitizeFlags.SANITIZE_ALL ^ \
+                         rdkit.Chem.SanitizeFlags.SANITIZE_KEKULIZE
     number_of_invalid = 0
-    with open(configuration['output'], 'w') as stream:
+    with open(output_file, 'w') as stream:
         stream.write('smiles,')
         stream.write(','.join(_names))
         stream.write('\n')
@@ -488,19 +488,35 @@ def main():
             # Construct molecule, compute and write properties.
             molecule = rdkit.Chem.MolFromSmiles(smiles, sanitize=False)
             # Do not kekulize molecule.
-            rdkit.Chem.SanitizeMol(molecule,
-                                   sanitizeOps=rdkit.Chem.SanitizeFlags.SANITIZE_ALL ^
-                                               rdkit.Chem.SanitizeFlags.SANITIZE_KEKULIZE);
+            rdkit.Chem.SanitizeMol(molecule, sanitizeOps=sanitize_operation)
             #
             if molecule is None:
-                print('Invalid molecule detected: ', smiles)
+                logging.error('Invalid molecule detected: %s', smiles)
                 number_of_invalid += 1
                 continue
             stream.write(','.join([str(fnc(molecule)) for fnc in _functions]))
             stream.write('\n')
-    print()
-    print('Invalid molecules: ', number_of_invalid, '/', len(smiles_set))
+    return {
+        'number_of_invalid': number_of_invalid,
+        'total': len(smiles_set)
+    }
+
+
+def _main():
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s [%(levelname)s] %(module)s - %(message)s',
+        datefmt='%H:%M:%S')
+    configuration = _read_configuration()
+    #
+    use_fragments = 'fragments' in configuration and configuration['fragments']
+    report = compute_descriptors(configuration['input'],
+                                 configuration['output'],
+                                 use_fragments)
+    #
+    logging.info('Invalid molecules: ', report['number_of_invalid'],
+                 '/', report['total'])
 
 
 if __name__ == '__main__':
-    main()
+    _main()

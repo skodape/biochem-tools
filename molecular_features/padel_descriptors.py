@@ -8,6 +8,10 @@ Usage:
         -o {path to output csv file}
         -p {path to the PaDEL directory that contains PaDEL-Descriptor.jar}
         -f Compute for fragments else for molecules.
+
+
+This file can also be used as a python script for import, in such case
+please use the compute_descriptors method.
 """
 
 import os
@@ -32,7 +36,7 @@ def create_parent_directory(path):
         os.makedirs(dir_name)
 
 
-def read_configuration():
+def _read_configuration():
     """Get and return application settings.
 
     :return:
@@ -54,18 +58,13 @@ def read_configuration():
     return vars(parser.parse_args())
 
 
-def main():
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s [%(levelname)s] %(module)s - %(message)s',
-        datefmt='%H:%M:%S')
-    configuration = read_configuration()
-    with open(configuration['input'], 'r') as stream:
+def compute_descriptors(input_file, output_file, use_fragments, padel_path):
+    with open(input_file, 'r') as stream:
         data = json.load(stream)
-    create_parent_directory(configuration['output'])
+    create_parent_directory(output_file)
     # Gather data.
     smiles_set = set()
-    if 'fragments' in configuration and configuration['fragments']:
+    if use_fragments:
         for molecule in data:
             for fragment in molecule['fragments']:
                 if not fragment['smiles'] in smiles_set:
@@ -75,7 +74,7 @@ def main():
             if not molecule['smiles'] in smiles_set:
                 smiles_set.add(molecule['smiles'])
     # Prepare data for PaDEL.
-    padel_input = os.path.dirname(configuration['output']) + '/PaDEL-temp.smi'
+    padel_input = os.path.dirname(output_file) + '/PaDEL-temp.smi'
     with open(padel_input, 'w') as stream:
         for smiles in smiles_set:
             stream.write(smiles)
@@ -86,17 +85,29 @@ def main():
     logging.info('Executing PaDEL ...')
     thread = subprocess.Popen(
         ['java', '-jar',
-         configuration['padel'] + '/PaDEL-Descriptor.jar',
+         padel_path + '/PaDEL-Descriptor.jar',
          '-maxruntime', '5000',
          '-threads', '2',
          '-2d',
          '-dir', padel_input,
-         '-file', configuration['output']],
+         '-file', output_file],
         shell=True)
     thread.wait()
     logging.info('Executing PaDEL ... done')
     os.remove(padel_input)
 
 
+def _main():
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s [%(levelname)s] %(module)s - %(message)s',
+        datefmt='%H:%M:%S')
+    configuration = _read_configuration()
+    #
+    use_fragments = 'fragments' in configuration and configuration['fragments']
+    compute_descriptors(configuration['input'], configuration['output'],
+                        use_fragments, configuration['padel'])
+
+
 if __name__ == '__main__':
-    main()
+    _main()

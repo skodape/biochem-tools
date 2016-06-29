@@ -24,6 +24,9 @@ default value:
 
 Kekule smiles form has no aromatic bonds. Use of --kekule option thus may
 reduce the number of generated unique fragments.
+
+This file can be also imported as a python script. In such case please
+use the extract_fragments method.
 """
 
 import os
@@ -223,7 +226,7 @@ def extract_fragments(molecule, types, options):
     return output
 
 
-def read_configuration():
+def _read_configuration():
     """Get and return application settings.
 
     :return:
@@ -252,8 +255,8 @@ def read_configuration():
     for item in configuration['fragments'].split(','):
         item_split = item.split('.')
         if not len(item_split) == 2:
-            print('Invalid fragment type: ' + item)
-            print('  Expected format {TYPE}.{SIZE}')
+            logging.error('Invalid fragment type: %s', item)
+            logging.info('  Expected format {TYPE}.{SIZE}')
             exit(1)
         parsed_types.append({
             'name': item_split[0],
@@ -352,12 +355,48 @@ _load_functions = {
 }
 
 
-def main():
+def extract_fragments(input_files, input_type, output_file, extraction_options):
+    """Extract fragments from molecules and write them to output JSON file.
+
+    :param input_files: List of files with molecules.
+    :param input_type: Type of input see _load_functions property.
+    :param output_file: Path to output JSON file.
+    :param extraction_options: See usage in _main for more information.
+    :return:
+    """
+    # The write_molecule_json need some static info.
+    holder = {'first': True}
+    # Count some statistics.
+    total_fragments = 0
+    #
+    create_parent_directory(output_file)
+    with open(output_file, 'w') as output_stream:
+        output_stream.write('[')
+        for path in input_files:
+            for molecule in _load_functions[input_type](path):
+                item = {
+                    'name': molecule.GetProp('_Name'),
+                    'smiles': rdkit.Chem.MolToSmiles(molecule),
+                    'fragments': extract_fragments(
+                        molecule, extraction_options['fragments'],
+                        extraction_options)
+                }
+                total_fragments += len(item['fragments'])
+                # Append to output.
+                append_object_to_json(output_stream, item, holder)
+        output_stream.write(']')
+    # Report with statistics.
+    return {
+        'total_fragments': total_fragments
+    }
+
+
+def _main():
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s [%(levelname)s] %(module)s - %(message)s',
         datefmt='%H:%M:%S')
-    configuration = read_configuration()
+    configuration = _read_configuration()
     # Read files to load.
     if os.path.isdir(configuration['input']):
         input_files = recursive_scan_for_input(configuration['input'],
@@ -365,36 +404,18 @@ def main():
                                                configuration['input_type'])
     else:
         input_files = [configuration['input']]
-    # The write_molecule_json need some static info.
-    holder = {'first': True}
     # Prepare configuration for the extraction.
     extraction_options = {
         'kekule': configuration['kekule'],
-        'isomeric': configuration['isomeric']
+        'isomeric': configuration['isomeric'],
+        'fragments': configuration['fragments']
     }
-    # Count some statistics.
-    total_fragments = 0
     #
-    create_parent_directory(configuration['output'])
-    with open(configuration['output'], 'w') as output_stream:
-        output_stream.write('[')
-        for path in input_files:
-            for molecule in _load_functions[configuration['input_type']](path):
-                item = {
-                    'name': molecule.GetProp('_Name'),
-                    'smiles': rdkit.Chem.MolToSmiles(molecule),
-                    'fragments': extract_fragments(
-                        molecule, configuration['fragments'],
-                        extraction_options)
-                }
-                total_fragments += len(item['fragments'])
-                # Append to output.
-                append_object_to_json(output_stream, item, holder)
-        output_stream.write(']')
-    #
-    print("Report")
-    print("  fragments total:", total_fragments)
+    report = extract_fragments(input_files, configuration['input_type'],
+                               configuration['output'], extraction_options)
+    logging.info('Report')
+    logging.info('fragments total: %d', report['total_fragments'])
 
 
 if __name__ == '__main__':
-    main()
+    _main()
