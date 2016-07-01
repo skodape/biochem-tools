@@ -207,7 +207,7 @@ def extract_neighbourhood_fragments(molecule, size, options):
 
 # endregion
 
-def extract_fragments(molecule, types, options):
+def extract_fragments_from_molecule(molecule, types, options):
     """Return fragments for given molecule.
 
     :param molecule:
@@ -377,7 +377,7 @@ def extract_fragments(input_files, input_type, output_file, extraction_options):
                 item = {
                     'name': molecule.GetProp('_Name'),
                     'smiles': rdkit.Chem.MolToSmiles(molecule),
-                    'fragments': extract_fragments(
+                    'fragments': extract_fragments_from_molecule(
                         molecule, extraction_options['fragments'],
                         extraction_options)
                 }
