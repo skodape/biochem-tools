@@ -358,11 +358,14 @@ _load_functions = {
 def extract_fragments(input_files, input_type, output_file, extraction_options):
     """Extract fragments from molecules and write them to output JSON file.
 
+    The extraction_options['fragments'] must be a list with objects describing
+    fragments to extract, see _read_configuration for more details.
+
     :param input_files: List of files with molecules.
     :param input_type: Type of input see _load_functions property.
     :param output_file: Path to output JSON file.
     :param extraction_options: See usage in _main for more information.
-    :return:
+    :return: Object with summary about computation.
     """
     # The write_molecule_json need some static info.
     holder = {'first': True}
@@ -385,7 +388,9 @@ def extract_fragments(input_files, input_type, output_file, extraction_options):
                 # Append to output.
                 append_object_to_json(output_stream, item, holder)
         output_stream.write(']')
-    # Report with statistics.
+    # Log nad return summary.
+    logging.info('Report')
+    logging.info('\tfragments total: %d', total_fragments)
     return {
         'total_fragments': total_fragments
     }
@@ -411,10 +416,8 @@ def _main():
         'fragments': configuration['fragments']
     }
     #
-    report = extract_fragments(input_files, configuration['input_type'],
-                               configuration['output'], extraction_options)
-    logging.info('Report')
-    logging.info('fragments total: %d', report['total_fragments'])
+    extract_fragments(input_files, configuration['input_type'],
+                      configuration['output'], extraction_options)
 
 
 if __name__ == '__main__':

@@ -453,6 +453,13 @@ def _read_configuration():
 
 
 def compute_descriptors(input_file, output_file, use_fragments):
+    """Compute descriptors for molecules/fragments in given input file.
+
+    :param input_file:
+    :param output_file:
+    :param use_fragments: If true use fragments instead of molecules.
+    :return: Summary object.
+    """
     with open(input_file, 'r') as stream:
         data = json.load(stream)
     create_parent_directory(output_file)
@@ -496,6 +503,9 @@ def compute_descriptors(input_file, output_file, use_fragments):
                 continue
             stream.write(','.join([str(fnc(molecule)) for fnc in _functions]))
             stream.write('\n')
+    # Log nad return summary.
+    logging.info('Invalid molecules: ', number_of_invalid,
+                 '/', len(smiles_set))
     return {
         'number_of_invalid': number_of_invalid,
         'total': len(smiles_set)
@@ -510,12 +520,8 @@ def _main():
     configuration = _read_configuration()
     #
     use_fragments = 'fragments' in configuration and configuration['fragments']
-    report = compute_descriptors(configuration['input'],
-                                 configuration['output'],
-                                 use_fragments)
-    #
-    logging.info('Invalid molecules: ', report['number_of_invalid'],
-                 '/', report['total'])
+    compute_descriptors(configuration['input'], configuration['output'],
+                        use_fragments)
 
 
 if __name__ == '__main__':

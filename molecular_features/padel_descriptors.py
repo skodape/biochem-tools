@@ -59,6 +59,14 @@ def _read_configuration():
 
 
 def compute_descriptors(input_file, output_file, use_fragments, padel_path):
+    """Compute descriptors for molecules/fragments in given input file.
+
+    :param input_file:
+    :param output_file:
+    :param use_fragments: If true use fragments instead of molecules.
+    :param padel_path: Path to PaDel.
+    :return: Nothing.
+    """
     with open(input_file, 'r') as stream:
         data = json.load(stream)
     create_parent_directory(output_file)
@@ -95,7 +103,10 @@ def compute_descriptors(input_file, output_file, use_fragments, padel_path):
     thread.wait()
     logging.info('Executing PaDEL ... done')
     os.remove(padel_input)
-
+    # Return summary.
+    return {
+        'total': len(smiles_set)
+    }
 
 def _main():
     logging.basicConfig(
