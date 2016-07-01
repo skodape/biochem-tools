@@ -504,8 +504,7 @@ def compute_descriptors(input_file, output_file, use_fragments):
             stream.write(','.join([str(fnc(molecule)) for fnc in _functions]))
             stream.write('\n')
     # Log nad return summary.
-    logging.info('Invalid molecules: ', number_of_invalid,
-                 '/', len(smiles_set))
+    logging.info('Invalid molecules: %d/%d', number_of_invalid, len(smiles_set))
     return {
         'number_of_invalid': number_of_invalid,
         'total': len(smiles_set)
