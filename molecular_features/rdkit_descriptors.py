@@ -493,7 +493,7 @@ def compute_descriptors(input_file, output_file, use_fragments):
             stream.write(smiles)
             stream.write('",')
             # Construct molecule, compute and write properties.
-            molecule = rdkit.Chem.MolFromSmiles(smiles, sanitize=False)
+            molecule = rdkit.Chem.MolFromSmiles(str(smiles), sanitize=False)
             # Do not kekulize molecule.
             rdkit.Chem.SanitizeMol(molecule, sanitizeOps=sanitize_operation)
             #
