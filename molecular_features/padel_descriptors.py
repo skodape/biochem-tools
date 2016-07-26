@@ -98,8 +98,7 @@ def compute_descriptors(input_file, output_file, use_fragments, padel_path):
          '-threads', '2',
          '-2d',
          '-dir', padel_input,
-         '-file', output_file],
-        shell=True)
+         '-file', output_file])
     thread.wait()
     logging.info('Executing PaDEL ... done')
     os.remove(padel_input)
@@ -107,6 +106,7 @@ def compute_descriptors(input_file, output_file, use_fragments, padel_path):
     return {
         'total': len(smiles_set)
     }
+
 
 def _main():
     logging.basicConfig(
