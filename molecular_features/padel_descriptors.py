@@ -7,7 +7,7 @@ Usage:
         -i {path to JSON with molecules, output of extract_fragments}
         -o {path to output csv file}
         -p {path to the PaDEL directory that contains PaDEL-Descriptor.jar}
-        -f Compute for fragments else for molecules.
+        --fragments Compute for fragments else for molecules.
 
 
 This file can also be used as a python script for import, in such case
@@ -51,7 +51,7 @@ def _read_configuration():
                         help='output CSV file', required=True)
     parser.add_argument('-p', type=str, dest='padel',
                         help='PaDEL directory', required=True)
-    parser.add_argument('-f', dest='fragments',
+    parser.add_argument('--fragments', dest='fragments',
                         help='use fragments instead of molecules',
                         action='store_true', required=False)
 
