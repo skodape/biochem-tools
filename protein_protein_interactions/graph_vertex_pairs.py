@@ -271,7 +271,7 @@ def process_graph(graph, configuration):
             # Add properties.
             left_code = get_vertex_code(left, vertices, configuration, info)
             right_code = get_vertex_code(right, vertices, configuration, info)
-            edge_code = get_vertex_code(right, vertices, configuration, info)
+            edge_code = get_edge_code(right, vertices, configuration, info)
             # Construct value.
             value = (left_code << (vertex_size + edge_size)) + \
                     (edge_code << vertex_size) + right_code
