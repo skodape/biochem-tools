@@ -94,7 +94,6 @@ def compute_descriptors(input_file, output_file, use_fragments, padel_path):
     thread = subprocess.Popen(
         ['java', '-jar',
          padel_path + '/PaDEL-Descriptor.jar',
-         '-maxruntime', '5000',
          '-threads', '2',
          '-2d',
          '-dir', padel_input,
