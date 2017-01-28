@@ -452,12 +452,14 @@ def _read_configuration():
     return vars(parser.parse_args())
 
 
-def compute_descriptors(input_file, output_file, use_fragments):
+def compute_descriptors(input_file, output_file, use_fragments,
+                        features_to_use=[]):
     """Compute descriptors for molecules/fragments in given input file.
 
     :param input_file:
     :param output_file:
     :param use_fragments: If true use fragments instead of molecules.
+    :param features_to_use: Empty to use all, else names of features to use.
     :return: Summary object.
     """
     with open(input_file, 'r') as stream:
@@ -474,13 +476,20 @@ def compute_descriptors(input_file, output_file, use_fragments):
         for molecule in data:
             if not molecule['smiles'] in smiles_set:
                 smiles_set.add(molecule['smiles'])
+    # Pick features to use.
+    if features_to_use == [] or features_to_use is None:
+        used_features_names = _names
+    else:
+        used_features_names = features_to_use
+    used_features_fnc = [_functions[_names.index(name)]
+                         for name in used_features_names]
     # Compute and write descriptors.
     sanitize_operation = rdkit.Chem.SanitizeFlags.SANITIZE_ALL ^ \
                          rdkit.Chem.SanitizeFlags.SANITIZE_KEKULIZE
     number_of_invalid = 0
     with open(output_file, 'w') as stream:
         stream.write('smiles,')
-        stream.write(','.join(_names))
+        stream.write(','.join(used_features_names))
         stream.write('\n')
         counter = 0
         counter_step = int(len(smiles_set) / 10)
@@ -501,7 +510,8 @@ def compute_descriptors(input_file, output_file, use_fragments):
                 logging.error('Invalid molecule detected: %s', smiles)
                 number_of_invalid += 1
                 continue
-            stream.write(','.join([str(fnc(molecule)) for fnc in _functions]))
+            stream.write(
+                ','.join([str(fnc(molecule)) for fnc in used_features_fnc]))
             stream.write('\n')
     # Log nad return summary.
     logging.info('Invalid molecules: %d/%d', number_of_invalid, len(smiles_set))
